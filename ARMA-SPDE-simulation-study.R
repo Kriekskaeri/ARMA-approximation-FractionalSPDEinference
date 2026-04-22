@@ -25,7 +25,7 @@ library(vioplot)
 library(Rcpp)
 library(RcppArmadillo)
 
-sourceCpp("/Users/simenkfu/Documents/sequential_kf.cpp")
+sourceCpp("/.../sequential_kf.cpp")
 
 #change to basis = sin want sin basis
 basis = cos
@@ -1280,7 +1280,7 @@ obj4 = aggr_func(4)
 
 ################# PLOT OF PREDICTIONS
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/RMSEfiltering-2.png")
+filepath = paste0(dir,"RMSEfiltering-2.png")
 png(filename=filepath, pointsize=10, width=6000, height=3000, res=600)
 par(mfrow = c(1,1))
 df1 = data.frame("Full" = rowMeans(obj1$RMSE_filtered),"Reduced" = rowMeans(obj1$RMSE_filtered_simple))
@@ -1304,7 +1304,7 @@ lines(c(6,6), c(-1000, 1000), lwd = 2)
 lines(c(9,9), c(-1000, 1000), lwd = 2)
 dev.off()
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/CRPSfiltering-2.png")
+filepath = paste0(dir,"CRPSfiltering-2.png")
 png(filename=filepath, pointsize=10, width=6000, height=3000, res=600)
 par(mfrow = c(1,1))
 df1 = data.frame("Full" = rowMeans(obj1$CRPS_filtered),"Reduced" = rowMeans(obj1$CRPS_filtered_simple))
@@ -1328,7 +1328,7 @@ lines(c(6,6), c(-1000, 1000), lwd = 2)
 lines(c(9,9), c(-1000, 1000), lwd = 2)
 dev.off()
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/RMSEone-step-prediction-2.png")
+filepath = paste0(dir,"RMSEone-step-prediction-2.png")
 png(filename=filepath, pointsize=10, width=6000, height=3000, res=600)
 par(mfrow = c(1,1))
 df1 = data.frame("Full" = rowMeans(obj1$RMSE_1st_pred),"Reduced" = rowMeans(obj1$RMSE_1st_pred_simple))
@@ -1352,7 +1352,7 @@ lines(c(6,6), c(-1000, 1000), lwd = 2)
 lines(c(9,9), c(-1000, 1000), lwd = 2)
 dev.off()
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/CRPS-one-step-prediction-2.png")
+filepath = paste0(dir,"CRPS-one-step-prediction-2.png")
 png(filename=filepath, pointsize=10, width=6000, height=3000, res=600)
 par(mfrow = c(1,1))
 df1 = data.frame("Full" = rowMeans(obj1$CRPS_1st_pred),"Reduced" = rowMeans(obj1$CRPS_1st_pred_simple))
@@ -1384,7 +1384,7 @@ df = data.frame("LH" = obj1$param_matr[,ind],
                 "LL" = obj2$param_matr[,ind],
                 "HL" = obj4$param_matr[,ind])
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/temp-smoothness-plot-2.png")
+filepath = paste0(dir,"temp-smoothness-plot-2.png")
 png(filename=filepath, pointsize=10, width=1500, height=1500, res=450)
 vioplot(df, ylim = c(0.5,2.75), main =  TeX("$\\nu_t$"))
 lines(c(0.5,4.5), c(1.0,1.0), col = "red", lwd = 2, lty = 2)
@@ -1399,7 +1399,7 @@ df = data.frame("LH" = obj1$param_matr[,ind],
                 "HH" = obj2$param_matr[,ind],
                 "HL" = obj4$param_matr[,ind])
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/spatial-smoothness-plot-2.png")
+filepath = paste0(dir,"spatial-smoothness-plot-2.png")
 png(filename=filepath, pointsize=10, width=1500, height=1500, res=450)
 vioplot(df, ylim = c(0.4,1.1), main =  TeX("$\\nu_s$"))
 lines(c(0.5,4.5), c(1.0,1.0), col = "red", lwd = 2, lty = 2)
@@ -1413,7 +1413,7 @@ df = data.frame("LH" = obj1$param_matr[,ind],
                 "HH" = obj2$param_matr[,ind],
                 "HL" = obj4$param_matr[,ind])
 
-filepath = paste0("/Users/simenkfu/Desktop/article 2 - plots/beta_s_plot-2.png")
+filepath = paste0(dir,"beta_s_plot-2.png")
 png(filename=filepath, pointsize=10, width=1500, height=1500, res=450)
 vioplot(df, ylim = c(0,1), main =  TeX("$\\beta_s$"))
 lines(c(0.5,2.5), c(0.25,0.25), col = "red", lwd = 2, lty = 2)
