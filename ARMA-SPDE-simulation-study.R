@@ -973,7 +973,7 @@ field_param_matr[3,] = c(1.0, 1.0, 0.25, 10.0, 1.0, 3.5, 0.35) #LL
 field_param_matr[4,] = c(1.0, 1.0, 0.75, 10.0, 1.0, 3.5, 0.35) #HL
 
 #Set target directory
-dir = "/Users/simenkfu/Documents/"
+dir = "/.../"
 
 ### This following code generates empty data-files
 ### It will delete and overwrite data-files if they exist
