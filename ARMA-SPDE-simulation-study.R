@@ -1,31 +1,13 @@
-library(geojsonR)
 library(pracma)
-library(ltsa)
-library(Pade)
-library(mvtnorm)
-library(matrixcalc)
 library(vioplot)
-library(ltsa)
-library(numDeriv)
-library(rootSolve)
-library(fields)
-library(colorRamps)
 library(Matrix)
 library(optimParallel)
-library(GEOmap)
 library(MASS)
-library(oce)
-library(norMmix)
-library(mvnfast)
-library(spatstat)
 library(verification)
-library(FKF.SP)
 library(latex2exp)
-library(vioplot)
 library(Rcpp)
-library(RcppArmadillo)
 
-sourceCpp("/.../sequential_kf.cpp")
+sourceCpp("/Users/simenkfu/Documents/sequential_kf.cpp")
 
 #change to basis = sin want sin basis
 basis = cos
@@ -222,38 +204,29 @@ full_structure_matrix = function(eigen, Nf = 100, b1 = 0, b2 = 1, p = 1, q = 0) 
   
 }
 
-#These three functions are not currently used.
-#They compute an inverse using a version of Woodbury that can handle non-negative definite matrices.
-semi_cholesky = function(A) {
-  a = norMmix::ldl(A)
-  chol_ = a$L %*% diag(sqrt(pmax(0,a$D)))
-  return(chol_)
-}
-pseudoWoodburyInverse = function(Hm, tau, S) {
-  
-  #t = Sys.time()
-  A = semi_cholesky(S)
-  #print(c("chol. time:", Sys.time() - t))
-  HA = Hm %*% A
-  
-  iden_n = diag(rep(1, dim(Hm)[1]))
-  iden_m = diag(rep(1, dim(A)[1]))
-  
-  #t = Sys.time()
-  Ff = iden_m + t(HA) %*% HA / tau^2
-  #print(c("Compute Ff:", Sys.time() - t))
-  
-  #t = Sys.time()
-  Ee = iden_n - HA %*% solve(Ff) %*% t(HA) / tau^2
-  #print(c("Compute Ee:", Sys.time() - t))
-  
-  #t = Sys.time()
-  inv = Ee / tau^2
-  #print(c("Compute inv:", Sys.time() - t))
-  
-  return(inv)
-  
-}
+#These two functions are commented out since they are not used in this implementation.
+#They compute an inverse using a version of the Woodbury identity that can handle non-negative definite matrices.
+
+#semi_cholesky = function(A) {
+#  a = norMmix::ldl(A)
+#  chol_ = a$L %*% diag(sqrt(pmax(0,a$D)))
+#  return(chol_)
+#}
+#pseudoWoodburyInverse = function(Hm, tau, S) {
+#  
+#  A = semi_cholesky(S)
+#  HA = Hm %*% A
+#  
+#  iden_n = diag(rep(1, dim(Hm)[1]))
+#  iden_m = diag(rep(1, dim(A)[1]))
+#  
+#  Ff = iden_m + t(HA) %*% HA / tau^2
+#  Ee = iden_n - HA %*% solve(Ff) %*% t(HA) / tau^2
+#  inv = Ee / tau^2
+#
+#  return(inv)
+#  
+#}
 
 #This is the simulation code.
 #returns a list containing: 
@@ -363,21 +336,6 @@ KF_clean_seq = function(Y, x, y, v_t, v_s, k_, r_s, r_t, sigma, tau, M, ratdegre
     C = sqrt(2)^((i != 0) + (j != 0))
     c_ = c_ + eigen$NORM[k] * (C * basis(pi * 0.5 * i) * basis(pi * 0.5 * j))^2
   }
-  
-  #compute percentage of variance explained by the M^2 basis functions compared to the 32^2 basis functions
-  #p_acc_mid = 0
-  #for(k in 1:M^2) {
-  #  i = eigen$keys[1,k]
-  #  j = eigen$keys[2,k]
-  #  C = sqrt(2)^((i != 0) + (j != 0))
-  #  p_acc_mid = p_acc_mid + eigen$NORM[k] * (C * basis(pi * 0.5 * i) * basis(pi * 0.5 * j))^2
-  #}
-  #p_acc_mid = (c_ - p_acc_mid) / c_ * sigma^2
-  #if(silent == F) {
-  #  print(paste0("Explained error: ", sigma^2 - p_acc_mid))
-  #  print(paste0("Unexplained error: ", p_acc_mid))
-  #  print(paste0("Spc.approx error in norm: ", 1 - sum(eigen$NORM[1:M^2]))) 
-  #}
   
   #Computation of rational coefficients
   coef = arma_coef(1, ga, h, ratdegree, r_approx_func, T)
@@ -527,11 +485,8 @@ KF_seq = function(Y, x, y, v_t, v_s, k_, r_s, r_t, sigma, tau, M, ratdegree, h, 
   ka = sqrt(8 * v_s) / r_s
   r = r_t * ka^(2*al) / sqrt(8 * (ga - 0.5))
   
-  #Y = as.matrix(Y)
   #number of obs/timestep
   n_stations = dim(Y)[1]
-  #if(n_stations == 1) {Y = t(Y)}
-  #print(dim(Y))
   
   #compute eigenvalues
   M_max = M #eigenvalues are scaled so that the norm-variance is 1 across 32^2 basis functions
@@ -890,7 +845,7 @@ Ti = 45 #number of temporal steps
 
 ### Example 1
 
-field_param = c(0.5, 1.0, 0.25, 10.0, 1.0, 3.5, 0.75)
+field_param = c(1.0, 1.0, 0.25, 10.0, 1.0, 3.5, 0.75)
 
 #Step 1: Simulate sampling locations
 stat_loc = generate_station_locations(sim_n, "Uniform", plotB = F)
