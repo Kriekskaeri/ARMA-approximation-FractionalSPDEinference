@@ -7,7 +7,9 @@ library(verification)
 library(latex2exp)
 library(Rcpp)
 
-sourceCpp("/Users/simenkfu/Documents/sequential_kf.cpp")
+sourceCpp(paste0(getwd(),"/sequential_kf.cpp"))
+Rcpp.package.skeleton("KFParallel", cpp_files = "sequential_kf.cpp")
+install.packages("KFParallel", repos = NULL, type = "source")
 
 #change to basis = sin want sin basis
 basis = cos
@@ -236,10 +238,9 @@ full_structure_matrix = function(eigen, Nf = 100, b1 = 0, b2 = 1, p = 1, q = 0) 
 #spec_procs: an M^2 x T matrix containing the spectral processes on each coefficients
 #x: a list of x values of the spatial locations
 #y: a list of y values of the spatial locations
-#altitudes: a list of the altitudes of the measurements (currently not used for anything)
 #eigen: the EIGEN-list associated with the simulation
 #Hm: the observation matrix associated with the simulation
-exact_simulate_data = function(v_t, v_s, k_, r_s, r_t, sigma, tau, M, h, Ti, mean_effect, altitude_effect, seasonal_effect, N_obs = 100, x = c(0), y = c(0), altitude = c(0)) {
+exact_simulate_data = function(v_t, v_s, k_, r_s, r_t, sigma, tau, M, h, Ti, N_obs = 100, x = c(0), y = c(0)) {
   
   #spatial locations are sampled uniformly unless spatial locations are specified
   if(sum(x) == 0) {
@@ -292,19 +293,15 @@ exact_simulate_data = function(v_t, v_s, k_, r_s, r_t, sigma, tau, M, h, Ti, mea
     }
   }
   
-  #compute altitude and seasonal effect (currently zero)
-  altitude_comp = altitude_effect * matrix(rep(altitude, Ti), ncol = Ti, nrow = N_obs)
-  seasonal_comp = seasonal_effect * t(matrix(rep(cos(2 * pi * h  * (1:Ti)), N_obs), ncol = N_obs, nrow = Ti))
-  
   #simulate observation error
   error = matrix(rnorm(N_obs * Ti, 0, tau), ncol = Ti, nrow = N_obs)
   
   #compute Y from X_field and error
   X_raw = Hm %*% X_field
-  X_eff = X_raw + mean_effect + altitude_comp + seasonal_comp
+  X_eff = X_raw 
   Y = X_eff + error
   
-  return(list("Y" = Y, "X_eff" = X_eff, "X_raw" = X_raw, "spec_procs" = X_field, "x" = x, "y" = y, "altitude" = altitude, "eigen" = eigen, "Hm" = Hm))
+  return(list("Y" = Y, "X_eff" = X_eff, "X_raw" = X_raw, "spec_procs" = X_field, "x" = x, "y" = y, "eigen" = eigen, "Hm" = Hm))
 }
 
 #This is the implementation of the (sequential) Kalman filter
@@ -851,7 +848,7 @@ field_param = c(1.0, 1.0, 0.25, 10.0, 1.0, 3.5, 0.75)
 stat_loc = generate_station_locations(sim_n, "Uniform", plotB = F)
 
 #Step 2: Simulate data
-simulation_obj = exact_simulate_data(field_param[1], field_param[2], field_param[3], field_param[5], field_param[4], field_param[6], field_param[7], M_sim, h, Ti, covar_param[1], covar_param[2], covar_param[3], N_obs = sim_n, x = stat_loc$x, y = stat_loc$y) #, x = lengde_3, y = bredde_3, altitude = altitude)
+simulation_obj = exact_simulate_data(field_param[1], field_param[2], field_param[3], field_param[5], field_param[4], field_param[6], field_param[7], M_sim, h, Ti, N_obs = sim_n, x = stat_loc$x, y = stat_loc$y)
 
 #Step 3: Set-up technical likelihood function for use in optim()
 log_lik_sim = function(param) {
@@ -869,7 +866,8 @@ log_lik_sim = function(param) {
   tau = param_[7]
   
   #run kalman filter
-  model_l = try(KF_clean_seq(simulation_obj$Y[,1:Ti], simulation_obj$x, simulation_obj$y, v_t, v_s, k_, r_s, r_t, sigma, tau, Mm, ratio, h, Ti), silent = F)
+  #model_l = try(KF_clean_seq(simulation_obj$Y[,1:Ti], simulation_obj$x, simulation_obj$y, v_t, v_s, k_, r_s, r_t, sigma, tau, Mm, ratio, h, Ti), silent = F)
+  model_l = KF_clean_seq(simulation_obj$Y[,1:Ti], simulation_obj$x, simulation_obj$y, v_t, v_s, k_, r_s, r_t, sigma, tau, Mm, ratio, h, Ti)
   
   #test if an error has occured or +-Inf returned, if so return 1e6, if not return the negative log likelihood
   if(class(model_l) == "try-error") {
@@ -899,26 +897,36 @@ init_par = c(0.5, 0.5, 0.5, 5.0, 0.5, 5.0, 0.5)
 
 #cluster set-up
 nCores <- detectCores() - 1
-cluster <- makeCluster(nCores, type="FORK")
+cluster <- makeCluster(nCores)
+
 setDefaultCluster(cl=cluster)
+
+clusterEvalQ(cluster, library(pracma))
+clusterEvalQ(cluster, library(Matrix))
+clusterEvalQ(cluster, library(KFParallel))
+
+clusterExport(cluster, list("init_par", "log_lik_sim", "Mm", "param_trans", "param_inv_trans", "eps", "KF_clean_seq", "simulation_obj", "Ti", "EIGEN", "basis_is_cos", "basis", "arma_coef", "r_approx_func", "ratio", "sup_norm_error", "h"))
 
 #run optimParallel()
 t_start = Sys.time()
-print(paste0("Starting full inference for iter ", iter, " at ", t_start))
+print(paste0("Starting full inference at ", t_start))
 opt_param = optimParallel(init_par, log_lik_sim, parallel=list(loginfo=TRUE) , control = list(fnscale = 1000), hessian = F) #, method = "Nelder-Mead") #, lower = c(0.25, 0.25, 0.1, 0.1, 0.001, 0.001), upper = c(2.5, 2.5, 2.5, 1.0, 5.0, 5.0))
 print(param_trans(opt_param$par))
 print(paste0("Log-likelihood of est. parameters in full inference: ", opt_param$value))
 t_end = Sys.time()
-print(paste0("Full inference for iter ", iter, " and sqrt(M) = ", Mm, " completed at ", t_end))
+print(paste0("Full inference for sqrt(M) = ", Mm, " completed at ", t_end))
 
 #stop cluster
 stopCluster(cluster)
+
+print(param_trans(opt_param$par))
+print(field_param)
 
 
 
 ### The code for the full simulation study is below:
 
-repl = 2 #number of replicates of simulation+inference. 30 is used in the paper
+repl = 3 #number of replicates of simulation+inference. 30 is used in the paper
 
 # Matrix of the four sets of parameters considered in the paper:
 field_param_matr = matrix(NA, nrow = 4, ncol = 7)
@@ -928,7 +936,7 @@ field_param_matr[3,] = c(1.0, 1.0, 0.25, 10.0, 1.0, 3.5, 0.35) #LL
 field_param_matr[4,] = c(1.0, 1.0, 0.75, 10.0, 1.0, 3.5, 0.35) #HL
 
 #Set target directory
-dir = "/.../"
+dir = paste0(getwd(), "/")
 
 ### This following code generates empty data-files
 ### It will delete and overwrite data-files if they exist
@@ -955,7 +963,7 @@ for(iter in 1:repl) {
     print(paste0("Starting simulation at ", t))
     stat_loc = generate_station_locations(sim_n, "Uniform", plotB = F)
     #stat_loc = list("x" = x[I], "y" = y[I])
-    simulation_obj = exact_simulate_data(field_param[1], field_param[2], field_param[3], field_param[5], field_param[4], field_param[6], field_param[7], M_sim, h, Ti, covar_param[1], covar_param[2], covar_param[3], N_obs = sim_n, x = stat_loc$x, y = stat_loc$y) #, x = lengde_3, y = bredde_3, altitude = altitude)
+    simulation_obj = exact_simulate_data(field_param[1], field_param[2], field_param[3], field_param[5], field_param[4], field_param[6], field_param[7], M_sim, h, Ti, N_obs = sim_n, x = stat_loc$x, y = stat_loc$y)
     print(paste0("Simulation for iter ", iter, " took ", Sys.time() - t))
     
     filepath1 = paste0(dir, "parameter-inference-full-simulated-param-",param_case_iter,"-250stat.RData")
@@ -1017,10 +1025,17 @@ for(iter in 1:repl) {
     print(paste0("Log-likelihood of the truth: ", ll_true))
     
     init_par = c(0.5, 0.5, 0.5, 5.0, 0.5, 5.0, 0.5)
-    
     nCores <- detectCores() - 1
-    cluster <- makeCluster(nCores, type="FORK")
+    cluster <- makeCluster(nCores)
+    
     setDefaultCluster(cl=cluster)
+    
+    clusterEvalQ(cluster, library(pracma))
+    clusterEvalQ(cluster, library(Matrix))
+    clusterEvalQ(cluster, library(KFParallel))
+    
+    clusterExport(cluster, list("iter","init_par", "log_lik_sim", "Mm", "param_trans", "param_inv_trans", "eps", "KF_clean_seq", "simulation_obj", "Ti", "EIGEN", "basis_is_cos", "basis", "arma_coef", "r_approx_func", "ratio", "sup_norm_error", "h"))
+    
     
     t_start = Sys.time()
     print(paste0("Starting full inference for iter ", iter, " at ", t_start))
@@ -1082,7 +1097,8 @@ for(ind in c(1,2,3,4)) {
     print(paste0("Iteration #",iter))
     field_param = field_param_matr[ind,]    
     stat_loc = generate_station_locations(sim_n, "Uniform", plotB = F)
-    simulation_obj = exact_simulate_data(field_param[1], field_param[2], field_param[3], field_param[5], field_param[4], field_param[6], field_param[7], M_sim, h, Ti, covar_param[1], covar_param[2], covar_param[3], N_obs = sim_n, x = stat_loc$x, y = stat_loc$y)#, x = lengde_3, y = bredde_3, altitude = altitude)  
+    simulation_obj = exact_simulate_data(field_param[1], field_param[2], field_param[3], field_param[5], field_param[4], field_param[6], field_param[7], M_sim, h, Ti, N_obs = sim_n, x = stat_loc$x, y = stat_loc$y)
+    
     
     ### Basis functions for prediction
     M_pred = 8
